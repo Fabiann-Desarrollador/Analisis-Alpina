@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Alpina · Tablero Financiero</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#f5f7f2; --card:#ffffff; --text:#1c2b22; --sub:#5c6b60; --border:#e3e9de;
+  --green:#2E9E4F; --yellow:#F2B705; --pink:#E85D8C; --violet:#7A4EA6; --teal:#159895; --gray:#8492A6;
+  --accent:#2E9E4F;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#10160f; --card:#182018; --text:#e8f0e5; --sub:#9fb0a5; --border:#2a362a; }
+}
+:root[data-theme="dark"]{ --bg:#10160f; --card:#182018; --text:#e8f0e5; --sub:#9fb0a5; --border:#2a362a; }
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+header{padding:20px 24px 10px;border-bottom:4px solid transparent;
+  border-image:linear-gradient(90deg,var(--green),var(--yellow),var(--pink),var(--violet)) 1;}
+header h1{margin:0;font-size:21px;}
+header p{margin:4px 0 0;color:var(--sub);font-size:13px;}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px 40px;}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:18px 0 20px;}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;border-top:3px solid var(--accentkpi,var(--green));}
+.kpi h3{margin:0 0 6px;font-size:12px;color:var(--sub);font-weight:600;}
+.kpi .val{font-size:23px;font-weight:700;}
+.kpi .delta{font-size:12px;margin-top:4px;}
+.up{color:var(--green);} .down{color:var(--pink);} .flat{color:var(--sub);}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;}
+.card h2{margin:0 0 2px;font-size:15px;}
+.card p.desc{margin:0 0 8px;font-size:12px;color:var(--sub);}
+.chartControls{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+button.btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:5px 11px;border-radius:7px;cursor:pointer;font-size:12px;font-family:inherit;}
+button.btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+button.btn:hover:not(.active){background:var(--border);}
+.chart-wrap{width:100%;overflow-x:auto;}
+svg{width:100%;height:auto;display:block;min-width:280px;}
+.full{grid-column:1/-1;}
+.note{font-size:11px;color:var(--sub);margin-top:8px;}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:8px;font-size:12px;}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;}
+#tip{position:fixed;z-index:999;background:#1c2b22;color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;line-height:1.5;pointer-events:none;opacity:0;transition:opacity .1s;max-width:230px;box-shadow:0 6px 18px rgba(0,0,0,.25);}
+footer{text-align:center;color:var(--sub);font-size:11px;padding:20px;}
+.vtable{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+.vtable th,.vtable td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
+.vtable th:first-child,.vtable td:first-child{text-align:left;white-space:normal;}
+.vtable thead th{background:var(--bg);color:var(--sub);font-weight:600;font-size:11px;}
+.vtable tbody tr:hover{background:var(--bg);}
+.vtable td.pos{color:var(--green);font-weight:600;}
+.vtable td.neg{color:var(--pink);font-weight:600;}
+.vtable td.nd{color:var(--sub);font-style:italic;}
+.tblwrap{width:100%;overflow-x:auto;}
+.insights{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;}
+@media(max-width:900px){.insights{grid-template-columns:1fr;}}
+.insight{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.insight h4{margin:0 0 6px;font-size:12.5px;display:flex;align-items:center;gap:6px;}
+.insight p{margin:0;font-size:12px;color:var(--sub);line-height:1.5;}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#fff;margin-left:auto;}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<header class="wrap">
+  <h1>📊 Alpina Productos Alimenticios S.A.S. — Tablero de Control Financiero</h1>
+  <p>Eficiencia operativa y solvencia · Cifras en millones de COP · Fuente: Estados Financieros EMIS (Individual/Anual) 2021–2025</p>
+</header>
+<div class="wrap">
+  <div class="kpis" id="kpiRow"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Ingresos, EBITDA y Utilidad Neta</h2>
+      <p class="desc">Barras verticales · millones COP · pase el cursor sobre cada barra</p>
+      <div class="chartControls" id="rangeGrpBar"></div>
+      <div class="chart-wrap"><svg id="chBar" viewBox="0 0 640 320"></svg></div>
+      <div class="legend" id="legBar"></div>
+      <p class="note">EBITDA no reportado por la fuente para 2022–2023 (marcado N/D).</p>
+    </div>
+    <div class="card">
+      <h2>ROE por año</h2>
+      <p class="desc">Barras horizontales · Utilidad Neta / Patrimonio</p>
+      <div class="chartControls" id="rangeGrpBarH"></div>
+      <div class="chart-wrap"><svg id="chBarH" viewBox="0 0 640 260"></svg></div>
+    </div>
+    <div class="card">
+      <h2>Liquidez vs Rentabilidad vs Tamaño</h2>
+      <p class="desc">Burbujas · eje X: Razón Corriente (x) · eje Y: ROE (%) · tamaño = Activos Totales</p>
+      <div class="chartControls" id="rangeGrpBubble"></div>
+      <div class="chart-wrap"><svg id="chBubble" viewBox="0 0 560 300"></svg></div>
+    </div>
+    <div class="card">
+      <h2>Estructura de Financiamiento — <span id="donutYear"></span></h2>
+      <p class="desc">Dona · Pasivos vs Patrimonio (solvencia / apalancamiento)</p>
+      <div class="chartControls" id="yearGrpDonut"></div>
+      <div class="chart-wrap"><svg id="chDonut" viewBox="0 0 320 300"></svg></div>
+      <div class="legend" id="legDonut"></div>
+    </div>
+    <div class="card">
+      <h2>Composición del Costo y Gastos — <span id="pieYear"></span></h2>
+      <p class="desc">Torta · % sobre Ingresos Netos</p>
+      <div class="chartControls" id="yearGrpPie"></div>
+      <div class="chart-wrap"><svg id="chPie" viewBox="0 0 320 300"></svg></div>
+      <div class="legend" id="legPie"></div>
+    </div>
+    <div class="card full">
+      <h2>Puente de Rentabilidad (P&amp;G) — <span id="wfYear"></span></h2>
+      <p class="desc">Cascada · de Ingresos Netos a Utilidad Neta · millones COP</p>
+      <div class="chartControls" id="yearGrpWF"></div>
+      <div class="chart-wrap"><svg id="chWaterfall" viewBox="0 0 900 360"></svg></div>
+    </div>
+
+    <div class="card full">
+      <h2>📈 Análisis de Variaciones Interanuales</h2>
+      <p class="desc">Variación % año contra año (YoY) · principales cuentas del Estado de Resultados y Balance</p>
+      <div class="tblwrap">
+      <table class="vtable">
+        <thead><tr><th>Rubro</th><th>2022 vs 21</th><th>2023 vs 22</th><th>2024 vs 23</th><th>2025 vs 24</th></tr></thead>
+        <tbody>
+          <tr><td>Ingresos Netos</td><td class="pos">+22.3%</td><td class="pos">+1.7%</td><td class="neg">-3.8%</td><td class="pos">+8.8%</td></tr>
+          <tr><td>Costo de Ventas</td><td class="neg">+23.8%</td><td class="neg">+2.2%</td><td class="pos">-6.8%</td><td class="neg">+7.4%</td></tr>
+          <tr><td>Utilidad Bruta</td><td class="pos">+20.1%</td><td class="pos">+1.1%</td><td class="pos">+0.7%</td><td class="pos">+10.7%</td></tr>
+          <tr><td>EBIT</td><td class="pos">+52.6%</td><td class="neg">-40.9%</td><td class="pos">+45.9%</td><td class="pos">+26.7%</td></tr>
+          <tr><td>EBITDA</td><td class="nd">N/D</td><td class="nd">N/D</td><td class="nd">N/D</td><td class="pos">+17.4%</td></tr>
+          <tr><td>Utilidad Neta</td><td class="pos">+14.8%</td><td class="neg">-6.8%</td><td class="pos">+7.4%</td><td class="pos">+13.8%</td></tr>
+          <tr><td>Activos Totales</td><td class="pos">+8.9%</td><td class="neg">-2.9%</td><td class="neg">-6.9%</td><td class="neg">-6.0%</td></tr>
+          <tr><td>Patrimonio</td><td class="pos">+1.9%</td><td class="neg">-2.2%</td><td class="neg">-26.3%</td><td class="neg">-6.9%</td></tr>
+          <tr><td>Pasivos Totales</td><td class="neg">+10.2%</td><td class="pos">-3.0%</td><td class="pos">-3.3%</td><td class="pos">-5.9%</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p class="desc" style="margin-top:18px;">Evolución de márgenes y ratios clave · 2021–2025</p>
+      <div class="tblwrap">
+      <table class="vtable">
+        <thead><tr><th>Indicador</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th></tr></thead>
+        <tbody>
+          <tr><td>Margen Bruto</td><td>41.0%</td><td>40.3%</td><td>40.0%</td><td>41.9%</td><td><b>42.6%</b></td></tr>
+          <tr><td>Margen EBIT</td><td>8.7%</td><td>10.8%</td><td>6.3%</td><td>9.5%</td><td><b>11.1%</b></td></tr>
+          <tr><td>Margen EBITDA</td><td>13.5%</td><td class="nd">N/D</td><td class="nd">N/D</td><td>14.0%</td><td><b>15.1%</b></td></tr>
+          <tr><td>Margen Neto</td><td>5.0%</td><td>4.7%</td><td>4.3%</td><td>4.8%</td><td>5.0%</td></tr>
+          <tr><td>ROE</td><td>36.5%</td><td>41.1%</td><td>39.2%</td><td>57.2%</td><td><b>69.9%</b></td></tr>
+          <tr><td>ROA</td><td>6.0%</td><td>6.3%</td><td>6.1%</td><td>7.0%</td><td>8.5%</td></tr>
+          <tr><td>Razón Corriente</td><td>0.92x</td><td>0.66x</td><td>0.90x</td><td>0.85x</td><td>0.84x</td></tr>
+          <tr><td>Endeudamiento (Pas/Patr)</td><td>5.07x</td><td>5.48x</td><td>5.44x</td><td>7.14x</td><td><b>7.21x</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">CAGR 2021–2025: Ingresos +6.8% · EBIT +13.6% · Utilidad Neta +6.9% · Activos -1.9% · Patrimonio -9.1% anual.</p>
+    </div>
+
+    <div class="card full">
+      <h2>💡 Insights del Análisis</h2>
+      <p class="desc">Lecturas clave derivadas de las variaciones y ratios anteriores</p>
+      <div class="insights">
+        <div class="insight">
+          <h4>🌱 Crecimiento desacelerado, margen bruto en alza <span class="tag" style="background:var(--green)">Positivo</span></h4>
+          <p>Tras el salto de +22.3% en 2022, los ingresos se estancaron en 2023 (+1.7%) y cayeron -3.8% en 2024, repuntando +8.8% en 2025. Pese al vaivén, el margen bruto subió de forma sostenida (41.0% → 42.6%), señal de mejor gestión de costos o mix de producto, no solo de volumen.</p>
+        </div>
+        <div class="insight">
+          <h4>⚙️ Eficiencia operativa creciente <span class="tag" style="background:var(--green)">Positivo</span></h4>
+          <p>El EBIT creció a un CAGR de 13.6%, el doble que los ingresos (6.8%). El margen EBIT pasó de 8.7% a 11.1% y el margen EBITDA de 13.5% a 15.1% (años disponibles): la eficiencia operativa mejora de forma estructural, más allá del ciclo de ventas.</p>
+        </div>
+        <div class="insight">
+          <h4>⚠️ 2023, un año atípico a interpretar con cautela <span class="tag" style="background:var(--yellow)">Atención</span></h4>
+          <p>El EBIT cayó -40.9% pese a que ingresos y utilidad bruta subieron. Ese año la fuente reporta gastos de venta/admin en cero y proviene de la Cámara de Comercio de Bogotá ("No Auditado"), distinta a la Superintendencia usada en los demás años — cualquier tendencia que cruce por 2023 debe tomarse con reserva.</p>
+        </div>
+        <div class="insight">
+          <h4>📊 El ROE sube por reducción de patrimonio, no por margen <span class="tag" style="background:var(--yellow)">Atención</span></h4>
+          <p>El margen neto se mantuvo plano (4.3%–5.0%) mientras el ROE casi se duplicó (36.5% → 69.9%). El motor es la caída del patrimonio, -26.3% en 2024, probablemente por dividendos pagados (COP 53,692 M en 2024 y COP 77,437 M en 2025) más que por mejor rentabilidad sobre ventas.</p>
+        </div>
+        <div class="insight">
+          <h4>📉 Apalancamiento y balance más pequeño <span class="tag" style="background:var(--pink)">Riesgo</span></h4>
+          <p>La razón Pasivos/Patrimonio subió de 5.07x (2021) a 7.21x (2025), con el mayor salto en 2024, coincidiendo con la caída de patrimonio de ese año. Los activos totales también bajan desde 2022 (-2.9%, -6.9%, -6.0%): la empresa opera con un balance más pequeño y más apalancado.</p>
+        </div>
+        <div class="insight">
+          <h4>💧 Liquidez de corto plazo ajustada <span class="tag" style="background:var(--pink)">Riesgo</span></h4>
+          <p>La razón corriente ha estado por debajo de 1.0x en los cinco años (0.66x–0.92x) y el capital de trabajo es negativo todo el período. Común en consumo masivo con alta rotación, pero junto al mayor apalancamiento reduce el margen de maniobra ante choques de flujo de caja.</p>
+        </div>
+      </div>
+      <p class="note">En síntesis: eficiencia operativa creciente financiada con una estructura de capital cada vez más apalancada y un patrimonio en reducción — probablemente por política de dividendos, no por deterioro del negocio. Se recomienda confirmar con la compañía la causa de la caída de patrimonio en 2024 y tratar 2023 como dato parcial.</p>
+    </div>
+  </div>
+</div>
+<footer>Tablero generado a partir del archivo EMIS suministrado. N/D = dato no discriminado por la fuente para ese periodo. Cada gráfico tiene sus propios botones de filtro; pase el cursor (o toque, en móvil) sobre cualquier barra, burbuja o segmento para ver el detalle.</footer>
+
+<script>
+(function(){
+"use strict";
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent){
+  const n=document.createElementNS(NS,tag);
+  for(const k in attrs) n.setAttribute(k,attrs[k]);
+  if(parent) parent.appendChild(n);
+  return n;
+}
+function clear(svg){ while(svg.firstChild) svg.removeChild(svg.firstChild); }
+const tip=document.getElementById('tip');
+function posTip(e){
+  const pad=16; let x=e.clientX+pad, y=e.clientY+pad;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  if(x+220>vw) x=e.clientX-220;
+  if(y+100>vh) y=e.clientY-100;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function addTip(node,htmlFn){
+  node.style.cursor='pointer';
+  node.addEventListener('pointermove',function(e){ tip.innerHTML=htmlFn(); tip.style.opacity=1; posTip(e); });
+  node.addEventListener('pointerdown',function(e){ tip.innerHTML=htmlFn(); tip.style.opacity=1; posTip(e); });
+  node.addEventListener('pointerleave',function(){ tip.style.opacity=0; });
+}
+
+// Paleta corporativa Alpina (identidad 2021: verdes, amarillos, rosas y violetas)
+const COLORS={green:'#2E9E4F',yellow:'#F2B705',pink:'#E85D8C',violet:'#7A4EA6',teal:'#159895',gray:'#8492A6'};
+
+// ---------- DATOS (fuente EMIS) ----------
+const years=[2021,2022,2023,2024,2025];
+const revenue=[1752726.79,2143415.78,2180243.23,2098376.57,2282389.05];
+const cogs=[1033711.13,1279895.62,1307458.35,1219179.95,1309480.28];
+const gVenta=[39631.02,41930.04,0,38941.73,41398.76];
+const gAdmin=[518865.03,581040.57,0,614398.36,656211.19];
+const otrosOper=[8263.7,8267.58,0,25546.08,21524.26];
+const utilBruta=[719015.66,863520.16,872784.88,879196.62,972908.77];
+const ebit=[152255.91,232281.97,137316.05,200310.45,253774.57];
+const ebitdaRaw=[236357.61,null,null,293552.23,344554.38];
+const gAntesImp=[123157.02,153129.51,93628.2,160473.12,180076.43];
+const utilNeta=[87493.98,100413.86,93628.2,100521.17,114367.38];
+const activosTot=[1453044.58,1581896.35,1536664.37,1431184.17,1344661.18];
+const activosCorr=[362142.22,397073.47,438638.31,431779.74,519870.97];
+const patrimonio=[239404.63,244033.26,238553.7,175759.39,163715.78];
+const pasivosTot=[1213639.95,1337863.09,1298110.67,1255424.78,1180945.41];
+const pasivosCorr=[395561.75,605676.43,486674.01,508250.07,621829.07];
+const resultFin=years.map((y,i)=>+(gAntesImp[i]-ebit[i]).toFixed(2));
+const impuesto=years.map((y,i)=>+(gAntesImp[i]-utilNeta[i]).toFixed(2));
+
+const fmt=n=>n==null?'N/D':new Intl.NumberFormat('es-CO',{maximumFractionDigits:0}).format(n);
+const pct=n=>n==null?'N/D':n.toFixed(1)+'%';
+const margenNeto=years.map((y,i)=>utilNeta[i]/revenue[i]*100);
+const margenEbitda=years.map((y,i)=>ebitdaRaw[i]!=null?ebitdaRaw[i]/revenue[i]*100:null);
+const roe=years.map((y,i)=>utilNeta[i]/patrimonio[i]*100);
+const razonCorr=years.map((y,i)=>activosCorr[i]/pasivosCorr[i]);
+const endeud=years.map((y,i)=>pasivosTot[i]/patrimonio[i]);
+
+let selYear=2025, range=3;
+const idx=y=>years.indexOf(y);
+const sliceYears=()=>range===3?years.slice(-3):years;
+
+// ---------- Controles por gráfico (sincronizados) ----------
+const yearBtnGroups=['yearGrpDonut','yearGrpPie','yearGrpWF'].map(id=>document.getElementById(id));
+const rangeBtnGroups=['rangeGrpBar','rangeGrpBarH','rangeGrpBubble'].map(id=>document.getElementById(id));
+
+function buildYearButtons(){
+  yearBtnGroups.forEach(grp=>{
+    grp.innerHTML='';
+    years.forEach(y=>{
+      const b=document.createElement('button');
+      b.className='btn'+(y===selYear?' active':'');
+      b.textContent=y;
+      b.addEventListener('click',function(){ selYear=y; syncYearButtons(); renderSnapshots(); });
+      grp.appendChild(b);
+    });
+  });
+}
+function syncYearButtons(){
+  yearBtnGroups.forEach(grp=>{
+    Array.prototype.forEach.call(grp.children,c=>c.classList.toggle('active',+c.textContent===selYear));
+  });
+}
+function buildRangeButtons(){
+  rangeBtnGroups.forEach(grp=>{
+    grp.innerHTML='';
+    [[3,'Últimos 3 años'],[5,'2021–2025']].forEach(([val,label])=>{
+      const b=document.createElement('button');
+      b.className='btn'+(val===range?' active':'');
+      b.textContent=label;
+      b.addEventListener('click',function(){ range=val; syncRangeButtons(); renderTrends(); });
+      grp.appendChild(b);
+    });
+  });
+}
+function syncRangeButtons(){
+  rangeBtnGroups.forEach(grp=>{
+    Array.prototype.forEach.call(grp.children,(c,i)=>c.classList.toggle('active',(i===0?3:5)===range));
+  });
+}
+buildYearButtons();
+buildRangeButtons();
+
+// ---------- KPIs ----------
+function delta(arr){ const last=arr[arr.length-1], prev=arr[arr.length-2]; if(last==null||prev==null) return null; return last-prev; }
+function kpiCard(title,val,d,suffix,color){
+  const dir = d==null?'flat':(d>0?'up':(d<0?'down':'flat'));
+  const arrow = dir==='up'?'▲':(dir==='down'?'▼':'—');
+  return '<div class="kpi" style="border-top-color:'+color+'"><h3>'+title+'</h3><div class="val">'+val+'</div>'+
+    '<div class="delta '+dir+'">'+(d==null?'sin comparación':(arrow+' '+Math.abs(d).toFixed(1)+suffix+' vs. año anterior'))+'</div></div>';
+}
+function renderKpis(){
+  document.getElementById('kpiRow').innerHTML =
+    kpiCard('Margen EBITDA (2025)', pct(margenEbitda[margenEbitda.length-1]), delta(margenEbitda), 'pp', COLORS.green) +
+    kpiCard('Margen Neto (2025)', pct(margenNeto[margenNeto.length-1]), delta(margenNeto), 'pp', COLORS.yellow) +
+    kpiCard('ROE (2025)', pct(roe[roe.length-1]), delta(roe), 'pp', COLORS.violet) +
+    kpiCard('Razón Corriente (2025)', razonCorr[razonCorr.length-1].toFixed(2)+'x', delta(razonCorr), 'x', COLORS.teal) +
+    kpiCard('Endeudamiento P/Patr. (2025)', endeud[endeud.length-1].toFixed(2)+'x', delta(endeud), 'x', COLORS.pink);
+}
+
+function legendHTML(items){
+  return items.map(it=>'<span><i class="dot" style="background:'+it.color+'"></i>'+it.label+'</span>').join('');
+}
+
+// ---------- Gráfico de barras verticales agrupadas ----------
+function drawGroupedBars(svg,cats,series,yFmt){
+  clear(svg);
+  const W=640,H=320,M={t:30,r:16,b:40,l:78};
+  const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
+  const allVals=[]; series.forEach(s=>s.values.forEach(v=>{ if(v!=null) allVals.push(v); }));
+  const maxV=Math.max.apply(null,allVals)*1.15;
+  const n=cats.length, sN=series.length;
+  const groupW=innerW/n, barW=groupW/(sN+1.4);
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const val=maxV/steps*i;
+    const y=M.t+innerH-(val/maxV)*innerH;
+    el('line',{x1:M.l,x2:M.l+innerW,y1:y,y2:y,stroke:'var(--border)'},svg);
+    const t=el('text',{x:M.l-8,y:y+3,'text-anchor':'end','font-size':9,fill:'var(--sub)'},svg);
+    t.textContent=yFmt(val);
+  }
+  cats.forEach((cat,ci)=>{
+    series.forEach((s,si)=>{
+      const v=s.values[ci];
+      const cx=M.l+ci*groupW+(si+0.7)*barW;
+      if(v==null){
+        const y=M.t+innerH-16;
+        el('rect',{x:cx-barW*0.4,y:y,width:barW*0.8,height:16,fill:'none',stroke:'var(--sub)','stroke-dasharray':'3,2',rx:2},svg);
+        const t=el('text',{x:cx,y:y+11,'text-anchor':'middle','font-size':8,fill:'var(--sub)'},svg); t.textContent='N/D';
+        return;
+      }
+      const h=(v/maxV)*innerH;
+      const y=M.t+innerH-h;
+      const rect=el('rect',{x:cx-barW*0.4,y:y,width:barW*0.8,height:h,fill:s.color,rx:3},svg);
+      addTip(rect,s.tip(ci));
+    });
+    const xt=el('text',{x:M.l+(ci+0.5)*groupW,y:H-M.b+18,'text-anchor':'middle','font-size':11,fill:'var(--text)'},svg);
+    xt.textContent=cat;
+  });
+  el('line',{x1:M.l,x2:M.l,y1:M.t,y2:M.t+innerH,stroke:'var(--border)'},svg);
+  el('line',{x1:M.l,x2:M.l+innerW,y1:M.t+innerH,y2:M.t+innerH,stroke:'var(--border)'},svg);
+}
+
+// ---------- Barras horizontales ----------
+function drawHBar(svg,cats,values,color,tipFn){
+  clear(svg);
+  const W=640,H=260,M={t:14,r:60,b:34,l:56};
+  const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
+  const maxV=Math.max.apply(null,values)*1.25;
+  const n=cats.length, gap=innerH/n, bh=gap*0.55;
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const val=maxV/steps*i, x=M.l+(val/maxV)*innerW;
+    el('line',{x1:x,x2:x,y1:M.t,y2:M.t+innerH,stroke:'var(--border)'},svg);
+    const t=el('text',{x:x,y:M.t+innerH+16,'text-anchor':'middle','font-size':9,fill:'var(--sub)'},svg); t.textContent=val.toFixed(0)+'%';
+  }
+  cats.forEach((cat,i)=>{
+    const y=M.t+i*gap+(gap-bh)/2;
+    const w=(values[i]/maxV)*innerW;
+    const r=el('rect',{x:M.l,y:y,width:w,height:bh,fill:color,rx:4},svg);
+    addTip(r,tipFn(i));
+    const t=el('text',{x:M.l-8,y:y+bh/2+4,'text-anchor':'end','font-size':11,fill:'var(--text)'},svg); t.textContent=cat;
+    const vt=el('text',{x:M.l+w+6,y:y+bh/2+4,'font-size':11,fill:'var(--text)'},svg); vt.textContent=values[i].toFixed(1)+'%';
+  });
+  el('line',{x1:M.l,x2:M.l,y1:M.t,y2:M.t+innerH,stroke:'var(--border)'},svg);
+}
+
+// ---------- Burbujas ----------
+function drawBubble(svg,points){
+  clear(svg);
+  const W=560,H=300,M={t:16,r:16,b:36,l:48};
+  const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
+  const maxX=Math.max.apply(null,points.map(p=>p.x))*1.3;
+  const maxY=Math.max.apply(null,points.map(p=>p.y))*1.25;
+  const maxR=Math.max.apply(null,points.map(p=>p.r));
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const xv=maxX*f, yv=maxY*f;
+    const x=M.l+f*innerW, y=M.t+innerH-f*innerH;
+    el('line',{x1:M.l,x2:M.l+innerW,y1:y,y2:y,stroke:'var(--border)'},svg);
+    el('line',{x1:x,x2:x,y1:M.t,y2:M.t+innerH,stroke:'var(--border)'},svg);
+    const ty=el('text',{x:M.l-6,y:y+3,'text-anchor':'end','font-size':9,fill:'var(--sub)'},svg); ty.textContent=yv.toFixed(0);
+    const tx=el('text',{x:x,y:M.t+innerH+14,'text-anchor':'middle','font-size':9,fill:'var(--sub)'},svg); tx.textContent=xv.toFixed(1);
+  });
+  points.forEach(p=>{
+    const cx=M.l+(p.x/maxX)*innerW, cy=M.t+innerH-(p.y/maxY)*innerH;
+    const rr=9+22*(p.r/maxR);
+    const c=el('circle',{cx:cx,cy:cy,r:rr,fill:p.color,'fill-opacity':0.8,stroke:p.color},svg);
+    addTip(c,p.tip);
+    const t=el('text',{x:cx,y:cy+3,'text-anchor':'middle','font-size':9,fill:'#fff','font-weight':'700'},svg); t.textContent=p.label;
+  });
+  el('text',{x:M.l+innerW/2,y:H-2,'text-anchor':'middle','font-size':10,fill:'var(--sub)'},svg).textContent='Razón Corriente (x)  →';
+}
+
+// ---------- Pie / Dona ----------
+function drawPie(svg,values,colors,innerRatio,tipFn){
+  clear(svg);
+  const cx=130, cy=140, rOuter=110, rInner=innerRatio*rOuter;
+  const total=values.reduce((a,b)=>a+Math.abs(b),0);
+  let angle=0;
+  function pt(r,a){ const rad=a*Math.PI/180; return {x:cx+r*Math.sin(rad), y:cy-r*Math.cos(rad)}; }
+  values.forEach((v,i)=>{
+    const sweep=Math.abs(v)/total*360;
+    const start=angle, end=angle+sweep;
+    const large=sweep>180?1:0;
+    const oS=pt(rOuter,start), oE=pt(rOuter,end);
+    let d;
+    if(rInner>0){
+      const iS=pt(rInner,start), iE=pt(rInner,end);
+      d='M '+oS.x+' '+oS.y+' A '+rOuter+' '+rOuter+' 0 '+large+' 1 '+oE.x+' '+oE.y+' L '+iE.x+' '+iE.y+' A '+rInner+' '+rInner+' 0 '+large+' 0 '+iS.x+' '+iS.y+' Z';
+    } else {
+      d='M '+cx+' '+cy+' L '+oS.x+' '+oS.y+' A '+rOuter+' '+rOuter+' 0 '+large+' 1 '+oE.x+' '+oE.y+' Z';
+    }
+    const path=el('path',{d:d,fill:colors[i%colors.length]},svg);
+    addTip(path,tipFn(i,v,total));
+    if(sweep>14){
+      const mid=start+sweep/2;
+      const lr=rInner>0?(rOuter+rInner)/2:rOuter*0.62;
+      const lp=pt(lr,mid);
+      const t=el('text',{x:lp.x,y:lp.y+4,'text-anchor':'middle','font-size':11,'font-weight':'700',fill:'#fff'},svg);
+      t.textContent=(Math.abs(v)/total*100).toFixed(0)+'%';
+    }
+    angle=end;
+  });
+}
+
+// ---------- Cascada ----------
+function drawWaterfall(svg,steps){
+  clear(svg);
+  const W=900,H=360,M={t:20,r:16,b:96,l:82};
+  const innerW=W-M.l-M.r, innerH=H-M.t-M.b;
+  const allVals=[]; steps.forEach(s=>{ allVals.push(s.from); allVals.push(s.to); });
+  const maxV=Math.max.apply(null,allVals)*1.1;
+  const minV=Math.min(0,Math.min.apply(null,allVals));
+  const n=steps.length, groupW=innerW/n, barW=groupW*0.55;
+  const scaleY=v=>M.t+innerH-((v-minV)/(maxV-minV))*innerH;
+  const stepsN=4;
+  for(let i=0;i<=stepsN;i++){
+    const val=minV+(maxV-minV)/stepsN*i, y=scaleY(val);
+    el('line',{x1:M.l,x2:M.l+innerW,y1:y,y2:y,stroke:'var(--border)'},svg);
+    const t=el('text',{x:M.l-8,y:y+3,'text-anchor':'end','font-size':9,fill:'var(--sub)'},svg); t.textContent=fmt(val);
+  }
+  steps.forEach((s,i)=>{
+    const x=M.l+i*groupW+(groupW-barW)/2;
+    const y1=scaleY(Math.max(s.from,s.to)), y2=scaleY(Math.min(s.from,s.to));
+    const rect=el('rect',{x:x,y:y1,width:barW,height:Math.max(1,y2-y1),fill:s.color,rx:2},svg);
+    addTip(rect,s.tip);
+    if(i<n-1){
+      const xEnd=x+barW, xNext=M.l+(i+1)*groupW+(groupW-barW)/2, yLevel=scaleY(s.to);
+      el('line',{x1:xEnd,x2:xNext,y1:yLevel,y2:yLevel,stroke:'var(--sub)','stroke-dasharray':'2,2'},svg);
+    }
+    const ty=H-M.b+14;
+    const lbl=el('text',{x:x+barW/2,y:ty,'text-anchor':'end','font-size':10,fill:'var(--text)',transform:'rotate(-35 '+(x+barW/2)+' '+ty+')'},svg);
+    lbl.textContent=s.label;
+  });
+  const y0=scaleY(0);
+  el('line',{x1:M.l,x2:M.l+innerW,y1:y0,y2:y0,stroke:'var(--sub)'},svg);
+}
+
+// ---------- Render: tendencias (barras + burbujas) ----------
+function renderTrends(){
+  const ys=sliceYears(); const ii=ys.map(idx);
+  drawGroupedBars(document.getElementById('chBar'), ys, [
+    {label:'Ingresos Netos',color:COLORS.teal,values:ii.map(i=>revenue[i]),tip:ci=>()=>'<b>Ingresos Netos '+ys[ci]+'</b><br>$'+fmt(revenue[ii[ci]])+' M'},
+    {label:'EBITDA',color:COLORS.green,values:ii.map(i=>ebitdaRaw[i]),tip:ci=>()=>'<b>EBITDA '+ys[ci]+'</b><br>$'+fmt(ebitdaRaw[ii[ci]])+' M<br>Margen: '+pct(margenEbitda[ii[ci]])},
+    {label:'Utilidad Neta',color:COLORS.yellow,values:ii.map(i=>utilNeta[i]),tip:ci=>()=>'<b>Utilidad Neta '+ys[ci]+'</b><br>$'+fmt(utilNeta[ii[ci]])+' M<br>Margen: '+pct(margenNeto[ii[ci]])}
+  ], v=>'$'+fmt(v));
+  document.getElementById('legBar').innerHTML=legendHTML([
+    {color:COLORS.teal,label:'Ingresos Netos'},{color:COLORS.green,label:'EBITDA'},{color:COLORS.yellow,label:'Utilidad Neta'}
+  ]);
+
+  drawHBar(document.getElementById('chBarH'), ys, ii.map(i=>roe[i]), COLORS.violet, ci=>()=>
+    '<b>ROE '+ys[ci]+'</b><br>'+roe[ii[ci]].toFixed(1)+'%<br>Utilidad Neta: $'+fmt(utilNeta[ii[ci]])+' M<br>Patrimonio: $'+fmt(patrimonio[ii[ci]])+' M');
+
+  const palette=[COLORS.teal,COLORS.green,COLORS.yellow,COLORS.pink,COLORS.violet];
+  const points=ii.map((i,k)=>({
+    x:razonCorr[i], y:roe[i], r:activosTot[i], label:String(ys[k]).slice(2), color:palette[k%palette.length],
+    tip:()=>'<b>Año '+ys[k]+'</b><br>Razón Corriente: '+razonCorr[i].toFixed(2)+'x<br>ROE: '+roe[i].toFixed(1)+'%<br>Activos Totales: $'+fmt(activosTot[i])+' M'
+  }));
+  drawBubble(document.getElementById('chBubble'), points);
+}
+
+// ---------- Render: instantáneas por año ----------
+function renderSnapshots(){
+  const i=idx(selYear);
+  document.getElementById('donutYear').textContent=selYear;
+  document.getElementById('pieYear').textContent=selYear;
+  document.getElementById('wfYear').textContent=selYear;
+
+  drawPie(document.getElementById('chDonut'), [pasivosTot[i],patrimonio[i]], [COLORS.pink,COLORS.green], 0.55, (k,v,tot)=>()=>{
+    const label=k===0?'Pasivos Totales':'Patrimonio';
+    return '<b>'+label+'</b><br>$'+fmt(v)+' M ('+(v/tot*100).toFixed(1)+'%)<br>Endeudamiento (Pas/Patr): '+(pasivosTot[i]/patrimonio[i]).toFixed(2)+'x';
+  });
+  document.getElementById('legDonut').innerHTML=legendHTML([
+    {color:COLORS.pink,label:'Pasivos Totales ($'+fmt(pasivosTot[i])+' M)'},
+    {color:COLORS.green,label:'Patrimonio ($'+fmt(patrimonio[i])+' M)'}
+  ]);
+
+  const combinado = gVenta[i]===0 && gAdmin[i]===0;
+  let pieLabels,pieData,pieColors;
+  if(combinado){
+    pieLabels=['Costo de Ventas','Gastos Operativos (no discriminados)*'];
+    pieData=[cogs[i], utilBruta[i]-ebit[i]];
+    pieColors=[COLORS.pink,COLORS.gray];
+  } else {
+    pieLabels=['Costo de Ventas','Gastos de Venta','Gastos Admin.','Otros Result. Oper.'];
+    pieData=[cogs[i],gVenta[i],gAdmin[i],Math.max(otrosOper[i],0.01)];
+    pieColors=[COLORS.pink,COLORS.yellow,COLORS.violet,COLORS.gray];
+  }
+  drawPie(document.getElementById('chPie'), pieData, pieColors, 0, (k,v,tot)=>()=>
+    '<b>'+pieLabels[k]+'</b><br>$'+fmt(v)+' M<br>'+(v/revenue[i]*100).toFixed(1)+'% de Ingresos Netos');
+  document.getElementById('legPie').innerHTML=legendHTML(pieLabels.map((l,k)=>({color:pieColors[k],label:l})));
+
+  const steps=[];
+  steps.push({label:'Ingresos Netos',from:0,to:revenue[i],color:COLORS.teal,tip:()=>'<b>Ingresos Netos</b><br>$'+fmt(revenue[i])+' M'});
+  steps.push({label:'Costo de Ventas',from:revenue[i],to:utilBruta[i],color:COLORS.pink,tip:()=>'<b>Costo de Ventas</b><br>-$'+fmt(cogs[i])+' M'});
+  steps.push({label:'Utilidad Bruta',from:0,to:utilBruta[i],color:COLORS.gray,tip:()=>'<b>Utilidad Bruta</b><br>$'+fmt(utilBruta[i])+' M'});
+  if(combinado){
+    steps.push({label:'Gastos Operativos*',from:utilBruta[i],to:ebit[i],color:COLORS.pink,tip:()=>'<b>Gastos Operativos (no discriminados)</b><br>-$'+fmt(utilBruta[i]-ebit[i])+' M'});
+  } else {
+    let run=utilBruta[i];
+    steps.push({label:'Gastos de Venta',from:run,to:run-gVenta[i],color:COLORS.pink,tip:()=>'<b>Gastos de Venta</b><br>-$'+fmt(gVenta[i])+' M'}); run-=gVenta[i];
+    steps.push({label:'Gastos Admin.',from:run,to:run-gAdmin[i],color:COLORS.pink,tip:()=>'<b>Gastos Administrativos</b><br>-$'+fmt(gAdmin[i])+' M'}); run-=gAdmin[i];
+    steps.push({label:'Otros Result. Oper.',from:run,to:run-otrosOper[i],color:COLORS.pink,tip:()=>'<b>Otros Resultados Operativos</b><br>-$'+fmt(otrosOper[i])+' M'});
+  }
+  steps.push({label:'EBIT',from:0,to:ebit[i],color:COLORS.gray,tip:()=>'<b>EBIT (Utilidad Operativa)</b><br>$'+fmt(ebit[i])+' M'});
+  steps.push({label:'Resultado Financiero',from:ebit[i],to:ebit[i]+resultFin[i],color:resultFin[i]>=0?COLORS.green:COLORS.pink,tip:()=>'<b>Resultado Financiero</b><br>'+(resultFin[i]>=0?'+':'-')+'$'+fmt(Math.abs(resultFin[i]))+' M'});
+  steps.push({label:'Gan. antes Imp.',from:0,to:gAntesImp[i],color:COLORS.gray,tip:()=>'<b>Ganancia antes de Impuestos</b><br>$'+fmt(gAntesImp[i])+' M'});
+  steps.push({label:'Impuesto Renta',from:gAntesImp[i],to:gAntesImp[i]-impuesto[i],color:COLORS.pink,tip:()=>'<b>Impuesto a la Renta</b><br>-$'+fmt(impuesto[i])+' M'});
+  steps.push({label:'Utilidad Neta',from:0,to:utilNeta[i],color:COLORS.violet,tip:()=>'<b>Utilidad Neta</b><br>$'+fmt(utilNeta[i])+' M<br>Margen: '+pct(margenNeto[i])});
+  drawWaterfall(document.getElementById('chWaterfall'), steps);
+}
+
+renderKpis();
+renderTrends();
+renderSnapshots();
+window.addEventListener('resize', function(){ renderTrends(); renderSnapshots(); });
+})();
+</script>
+</body>
+</html>
